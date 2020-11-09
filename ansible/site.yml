@@ -1,0 +1,8 @@
+- name: Install dependencies on all nodes
+  import_playbook: common.yml
+- name: Configure master
+  import_playbook: master.yml
+- name: Join nodes
+  import_playbook: node.yml
+- name: Install dashboard
+  import_playbook: install_dashboard.yml      

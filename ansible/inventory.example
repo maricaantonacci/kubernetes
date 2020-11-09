@@ -1,0 +1,15 @@
+[master]
+127.0.0.1 ansible_connection=local
+
+[node]
+172.30.15.21
+172.30.15.22
+172.30.15.222
+
+[master:vars]
+apiserver_advertise_address=90.149.10.25
+apiserver_cert_extra_sans=kubernetes.example.com
+flannel_iface_regex=172\.30\.15\.*
+letsencrypt_email=admin@example.com
+letsencrypt_fqdn={{apiserver_cert_extra_sans}}
+kubernetes_dashboard_port=30443

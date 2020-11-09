@@ -1,0 +1,41 @@
+---
+- hosts: master
+  become: true
+  tasks:
+  - name: Generate SSL certs
+    block:
+      - name: Install letsencrypt
+        apt: name=letsencrypt state=present update_cache=true
+      - name: Create letsencrypt certificate
+        shell: letsencrypt certonly -n --standalone -m {{ letsencrypt_email }} --agree-tos -d {{ letsencrypt_fqdn }}
+        args:
+          creates: /etc/letsencrypt/live/{{ letsencrypt_fqdn }}
+  - name: Configure and install dashboard
+    block:
+      - name: Encode ssl cert
+        shell: cat /etc/letsencrypt/live/{{ letsencrypt_fqdn }}/fullchain.pem | base64 -w 0
+        register: ssl_cert_hash
+      - name: Encode ssl key
+        shell: cat /etc/letsencrypt/live/{{ letsencrypt_fqdn }}/privkey.pem | base64 -w 0
+        register: ssl_key_hash
+      - set_fact:
+          ssl_cert: "{{ssl_cert_hash.stdout_lines[0]}}"
+          ssl_key: "{{ssl_key_hash.stdout_lines[0]}}"
+      - template:
+          src: kubernetes-dashboard-deployment.j2 
+          dest: /tmp/kubernetes-dashboard-deployment.yml        
+      - name: Install dashboard       
+        command: kubectl create -f /tmp/kubernetes-dashboard-deployment.yml creates=/tmp/kubernetes-dashboard-deployment.yml
+        
+  - name: Create Admin service account to access dashboard
+    block:
+      - copy:
+          src: admin-sa.yml
+          dest: /tmp/admin-sa.yml
+      - command: kubectl apply -f /tmp/admin-sa.yml creates=/tmp/admin-sa.yml
+      - copy:
+          src: admin-rbac.yml
+          dest: /tmp/admin-rbac.yml
+      - command: kubectl apply -f /tmp/admin-rbac.yml creates=/tmp/admin-rbac.yml       
+      - name: Get token
+        debug: msg="kubectl -n kube-system describe secret $(kubectl get secrets -n kube-system | grep admin | awk '{print $1}')"
